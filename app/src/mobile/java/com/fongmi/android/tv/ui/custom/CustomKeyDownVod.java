@@ -10,6 +10,7 @@ import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 
+import com.fongmi.android.tv.player.Players;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
 
@@ -20,6 +21,7 @@ public class CustomKeyDownVod extends GestureDetector.SimpleOnGestureListener {
     private final Listener listener;
     private final Activity activity;
     private final View videoView;
+    private final Players players;
     private boolean changeBright;
     private boolean changeVolume;
     private boolean changeSpeed;
@@ -30,16 +32,20 @@ public class CustomKeyDownVod extends GestureDetector.SimpleOnGestureListener {
     private float volume;
     private int time;
 
-    public static CustomKeyDownVod create(Activity activity, View videoView) {
-        return new CustomKeyDownVod(activity, videoView);
+    private int mCurWidth;
+    private long mDuration;
+
+    public static CustomKeyDownVod create(Activity activity, View videoView, Players players) {
+        return new CustomKeyDownVod(activity, videoView, players);
     }
 
-    private CustomKeyDownVod(Activity activity, View videoView) {
+    private CustomKeyDownVod(Activity activity, View videoView, Players players) {
         this.manager = (AudioManager) activity.getSystemService(Context.AUDIO_SERVICE);
         this.detector = new GestureDetector(activity, this);
         this.listener = (Listener) activity;
         this.videoView = videoView;
         this.activity = activity;
+        this.players = players;
     }
 
     public boolean onTouchEvent(MotionEvent e) {
@@ -84,7 +90,10 @@ public class CustomKeyDownVod extends GestureDetector.SimpleOnGestureListener {
         float deltaX = e2.getX() - e1.getX();
         float deltaY = e1.getY() - e2.getY();
         if (touch) checkFunc(distanceX, distanceY, e2);
-        if (changeTime) listener.onSeek(time = (int) deltaX * 50);
+        if (changeTime) {
+            time = (int) (deltaX * mDuration / mCurWidth);
+            listener.onSeek(time);
+        }
         if (changeBright) setBright(deltaY);
         if (changeVolume) setVolume(deltaY);
         return true;
@@ -111,6 +120,13 @@ public class CustomKeyDownVod extends GestureDetector.SimpleOnGestureListener {
     private void checkFunc(float distanceX, float distanceY, MotionEvent e2) {
         changeTime = Math.abs(distanceX) >= Math.abs(distanceY);
         if (!changeTime) checkSide(e2);
+        if (changeTime) {
+            int screenWidth = ResUtil.getScreenWidth();
+            int screenHeight = ResUtil.getScreenHeight();
+            boolean isLand = ResUtil.isLand(activity);
+            mCurWidth = isLand ? screenHeight : screenWidth;
+            mDuration = players.getDuration();
+        }
         touch = false;
     }
 
